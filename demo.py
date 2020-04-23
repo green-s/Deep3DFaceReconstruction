@@ -1,4 +1,4 @@
-import tensorflow as tf 
+import tensorflow as tf
 import numpy as np
 import cv2
 from PIL import Image
@@ -20,7 +20,7 @@ def load_graph(graph_filename):
 def demo():
 	# input and output folder
 	image_path = 'input'
-	save_path = 'output'	
+	save_path = 'output'
 	if not os.path.exists(save_path):
 		os.makedirs(save_path)
 	img_list = glob.glob(image_path + '/' + '*.png')
@@ -44,7 +44,7 @@ def demo():
 		graph_def = load_graph('network/FaceReconModel.pb')
 		tf.import_graph_def(graph_def,name='resnet',input_map={'input_imgs:0': images})
 
-		# output coefficients of R-Net (dim = 257) 
+		# output coefficients of R-Net (dim = 257)
 		coeff = graph.get_tensor_by_name('resnet/coeff:0')
 
 		# reconstructing faces
@@ -53,7 +53,7 @@ def demo():
 		face_texture = FaceReconstructor.face_texture
 		face_color = FaceReconstructor.face_color
 		landmarks_2d = FaceReconstructor.landmark_p
-		recon_img = FaceReconstructor.render_imgs
+		# recon_img = FaceReconstructor.render_imgs
 		tri = FaceReconstructor.facemodel.face_buf
 
 
@@ -67,8 +67,8 @@ def demo():
 				# preprocess input image
 				input_img,lm_new,transform_params = Preprocess(img,lm,lm3D)
 
-				coeff_,face_shape_,face_texture_,face_color_,landmarks_2d_,recon_img_,tri_ = sess.run([coeff,\
-					face_shape,face_texture,face_color,landmarks_2d,recon_img,tri],feed_dict = {images: input_img})
+				coeff_,face_shape_,face_texture_,face_color_,landmarks_2d_,tri_ = sess.run([coeff,\
+					face_shape,face_texture,face_color,landmarks_2d,tri],feed_dict = {images: input_img})
 
 
 				# reshape outputs
@@ -77,10 +77,10 @@ def demo():
 				face_texture_ = np.squeeze(face_texture_, (0))
 				face_color_ = np.squeeze(face_color_, (0))
 				landmarks_2d_ = np.squeeze(landmarks_2d_, (0))
-				recon_img_ = np.squeeze(recon_img_, (0))
+				# recon_img_ = np.squeeze(recon_img_, (0))
 
 				# save output files
-				savemat(os.path.join(save_path,file.split(os.path.sep)[-1].replace('.png','.mat').replace('jpg','mat')),{'cropped_img':input_img[:,:,::-1],'recon_img':recon_img_,'coeff':coeff_,\
+				savemat(os.path.join(save_path,file.split(os.path.sep)[-1].replace('.png','.mat').replace('jpg','mat')),{'cropped_img':input_img[:,:,::-1],'coeff':coeff_,\
 					'face_shape':face_shape_,'face_texture':face_texture_,'face_color':face_color_,'lm_68p':landmarks_2d_,'lm_5p':lm_new})
 				save_obj(os.path.join(save_path,file.split(os.path.sep)[-1].replace('.png','_mesh.obj').replace('jpg','_mesh.obj')),face_shape_,tri_,np.clip(face_color_,0,255)/255) # 3D reconstruction face (in canonical view)
 

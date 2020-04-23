@@ -1,7 +1,7 @@
-import tensorflow as tf 
+import tensorflow as tf
 import math as m
 import numpy as np
-import mesh_renderer
+# import mesh_renderer
 from scipy.io import loadmat
 ###############################################################################################
 # Reconstruct 3D face based on output coefficients and facemodel
@@ -44,8 +44,8 @@ class Face3D():
 		# do rigid transformation for face shape using predicted rotation and translation
 		face_shape_t = self.Rigid_transform_block(face_shape,rotation,translation)
 		self.face_shape_t = face_shape_t
-		# compute 2d landmark projections 
-		# landmark_p: [batchsize,68,2]	
+		# compute 2d landmark projections
+		# landmark_p: [batchsize,68,2]
 		face_landmark_t = self.Compute_landmark(face_shape_t,self.facemodel)
 		landmark_p = self.Projection_block(face_landmark_t)   # 256*256 image
 		landmark_p = tf.stack([landmark_p[:,:,0],223. - landmark_p[:,:,1]],axis = 2)
@@ -56,10 +56,10 @@ class Face3D():
 		self.face_color = face_color
 
 		# reconstruction images
-		render_imgs = self.Render_block(face_shape_t,norm_r,face_color,self.facemodel,batchsize)
-		render_imgs = tf.clip_by_value(render_imgs,0,255)
-		render_imgs = tf.cast(render_imgs,tf.float32) 
-		self.render_imgs = render_imgs
+		# render_imgs = self.Render_block(face_shape_t,norm_r,face_color,self.facemodel,batchsize)
+		# render_imgs = tf.clip_by_value(render_imgs,0,255)
+		# render_imgs = tf.cast(render_imgs,tf.float32)
+		# self.render_imgs = render_imgs
 
 	######################################################################################################
 	def Split_coeff(self,coeff):
@@ -70,7 +70,7 @@ class Face3D():
 		angles = coeff[:,224:227] #euler angles for pose
 		gamma = coeff[:,227:254] #lighting
 		translation = coeff[:,254:257] #translation
-		
+
 		return id_coeff,ex_coeff,tex_coeff,angles,translation,gamma
 
 	def Shape_formation_block(self,id_coeff,ex_coeff,facemodel):
@@ -107,7 +107,7 @@ class Face3D():
 		#compute normal for each vertex using one-ring neighborhood
 		v_norm = tf.reduce_sum(tf.gather(face_norm, point_id, axis = 1), axis = 2)
 		v_norm = tf.nn.l2_normalize(v_norm, dim = 2)
-		
+
 		return v_norm
 
 	def Texture_formation_block(self,tex_coeff,facemodel):
@@ -161,7 +161,7 @@ class Face3D():
 		# R = RzRyRx
 		rotation = tf.matmul(tf.matmul(rotation_Z,rotation_Y),rotation_X)
 
-		# because our face shape is N*3, so compute the transpose of R, so that rotation shapes can be calculated as face_shape*R 
+		# because our face shape is N*3, so compute the transpose of R, so that rotation shapes can be calculated as face_shape*R
 		rotation = tf.transpose(rotation, perm = [0,2,1])
 
 		return rotation
@@ -214,7 +214,7 @@ class Face3D():
 		gamma = gamma + tf.reshape(init_lit,[1,1,9])
 
 		# compute vertex color using SH function approximation
-		a0 = m.pi 
+		a0 = m.pi
 		a1 = 2*m.pi/tf.sqrt(3.0)
 		a2 = 2*m.pi/tf.sqrt(8.0)
 		c0 = 1/tf.sqrt(4*m.pi)
@@ -247,48 +247,48 @@ class Face3D():
 
 		return face_shape_t
 
-	def Render_block(self,face_shape,face_norm,face_color,facemodel,batchsize):
-		# render reconstruction images 
-		n_vex = int(facemodel.idBase.shape[0].value/3)
-		fov_y = 2*tf.atan(112/(1015.))*180./m.pi + tf.zeros([batchsize])
+	#def Render_block(self,face_shape,face_norm,face_color,facemodel,batchsize):
+	#	# render reconstruction images
+	#	n_vex = int(facemodel.idBase.shape[0].value/3)
+	#	fov_y = 2*tf.atan(112/(1015.))*180./m.pi + tf.zeros([batchsize])
 
-		# full face region
-		face_shape = tf.reshape(face_shape,[batchsize,n_vex,3])
-		face_norm = tf.reshape(face_norm,[batchsize,n_vex,3])
-		face_color = tf.reshape(face_color,[batchsize,n_vex,3])
+	#	# full face region
+	#	face_shape = tf.reshape(face_shape,[batchsize,n_vex,3])
+	#	face_norm = tf.reshape(face_norm,[batchsize,n_vex,3])
+	#	face_color = tf.reshape(face_color,[batchsize,n_vex,3])
 
-		#cammera settings
-		# same as in Projection_block
-		camera_position = tf.constant([[0,0,10.0]]) + tf.zeros([batchsize,3])
-		camera_lookat = tf.constant([[0,0,0.0]]) + tf.zeros([batchsize,3])
-		camera_up = tf.constant([[0,1.0,0]]) + tf.zeros([batchsize,3])
+	#	#cammera settings
+	#	# same as in Projection_block
+	#	camera_position = tf.constant([[0,0,10.0]]) + tf.zeros([batchsize,3])
+	#	camera_lookat = tf.constant([[0,0,0.0]]) + tf.zeros([batchsize,3])
+	#	camera_up = tf.constant([[0,1.0,0]]) + tf.zeros([batchsize,3])
 
-		# setting light source position(intensities are set to 0 because we have already computed the vertex color)
-		light_positions = tf.reshape(tf.constant([0,0,1e5]),[1,1,3]) + tf.zeros([batchsize,1,3])
-		light_intensities = tf.reshape(tf.constant([0.0,0.0,0.0]),[1,1,3])+tf.zeros([batchsize,1,3])
-		ambient_color = tf.reshape(tf.constant([1.0,1,1]),[1,3])+ tf.zeros([batchsize,3])
+	#	# setting light source position(intensities are set to 0 because we have already computed the vertex color)
+	#	light_positions = tf.reshape(tf.constant([0,0,1e5]),[1,1,3]) + tf.zeros([batchsize,1,3])
+	#	light_intensities = tf.reshape(tf.constant([0.0,0.0,0.0]),[1,1,3])+tf.zeros([batchsize,1,3])
+	#	ambient_color = tf.reshape(tf.constant([1.0,1,1]),[1,3])+ tf.zeros([batchsize,3])
 
-		near_clip = 0.01*tf.ones([batchsize])
-		far_clip = 50*tf.ones([batchsize])
-		#using tf_mesh_renderer for rasterization (https://github.com/google/tf_mesh_renderer)
-		# img: [batchsize,224,224,4] images in RGBA order (0-255)
-		with tf.device('/cpu:0'):
-			img = mesh_renderer.mesh_renderer(face_shape,
-				tf.cast(facemodel.face_buf-1,tf.int32),
-				face_norm,
-				face_color,
-				camera_position = camera_position,
-				camera_lookat = camera_lookat,
-				camera_up = camera_up,
-				light_positions = light_positions,
-				light_intensities = light_intensities,
-				image_width = 224,
-				image_height = 224,
-				fov_y = fov_y, #12.5936
-				ambient_color = ambient_color,
-				near_clip = near_clip,
-				far_clip = far_clip)
+	#	near_clip = 0.01*tf.ones([batchsize])
+	#	far_clip = 50*tf.ones([batchsize])
+	#	#using tf_mesh_renderer for rasterization (https://github.com/google/tf_mesh_renderer)
+	#	# img: [batchsize,224,224,4] images in RGBA order (0-255)
+	#	with tf.device('/cpu:0'):
+	#		img = mesh_renderer.mesh_renderer(face_shape,
+	#			tf.cast(facemodel.face_buf-1,tf.int32),
+	#			face_norm,
+	#			face_color,
+	#			camera_position = camera_position,
+	#			camera_lookat = camera_lookat,
+	#			camera_up = camera_up,
+	#			light_positions = light_positions,
+	#			light_intensities = light_intensities,
+	#			image_width = 224,
+	#			image_height = 224,
+	#			fov_y = fov_y, #12.5936
+	#			ambient_color = ambient_color,
+	#			near_clip = near_clip,
+	#			far_clip = far_clip)
 
-		return img
+	#	return img
 
 

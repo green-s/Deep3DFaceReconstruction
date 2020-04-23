@@ -1,7 +1,10 @@
 import numpy as np 
+import face_alignment
 from PIL import Image
 from scipy.io import loadmat,savemat
 from array import array
+
+_fa = None
 
 # load expression basis
 def LoadExpBasis():
@@ -110,12 +113,33 @@ def load_lm3d():
 def load_img(img_path,lm_path):
 
 	image = Image.open(img_path)
-	lm = np.loadtxt(lm_path)
+	try:
+		lm = np.loadtxt(lm_path)
+	except OSError:
+		global _fa
+		if _fa is None:
+			_fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, flip_input=False)
+		lm = _fa.get_landmarks_from_image(img_path)[0]
+		lm = lm[[41, 47, 30, 48, 54], :]
+		np.savetxt(lm_path, lm, fmt='%1.2f')
 
 	return image,lm
 
 # save 3D face to obj file
 def save_obj(path,v,f,c):
+	with open(path,'w') as file:
+		for i in range(len(v)):
+			file.write('v %f %f %f %f %f %f\n'%(v[i,0],v[i,1],v[i,2],c[i,0],c[i,1],c[i,2]))
+
+		file.write('\n')
+
+		for i in range(len(f)):
+			file.write('f %d %d %d\n'%(f[i,0],f[i,1],f[i,2]))
+
+	file.close()
+
+# save 3D face to obj file
+def save_obj_old(path,v,f,c):
 	with open(path,'w') as file:
 		for i in range(len(v)):
 			file.write('v %f %f %f %f %f %f\n'%(v[i,0],v[i,1],v[i,2],c[i,0],c[i,1],c[i,2]))
